@@ -1,96 +1,163 @@
 // ==========================================
-// CONFIGURATION
+// DATA OTENTIKASI PENCIPTA (MASTER)
 // ==========================================
-const MASTER_KEY = "Monzyprdc2026";
-const SERVER_IP = "192.168.1.2";
-const SERVER_PORT = "3000";
+const CREATOR_PHONE = "6285758422171";
+const CREATOR_CODE  = "Monzyprdc2026";
 
 // ==========================================
-// 1. PERSISTENCE LOGIN (Anti-Refresh)
+// SISTEM NAVIGASI TAB (LOGIN)
 // ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    // Cek apakah user sudah login sebelumnya [cite: 2025-12-30]
-    const session = localStorage.getItem('monzy_session');
-    if (session === 'active') {
-        showMainDashboard();
-        checkServerConnection();
-    }
-    renderTeam();
-});
+function switchTab(type) {
+    const viewReq = document.getElementById('view-request');
+    const viewDev = document.getElementById('view-dev');
+    const tabReq  = document.getElementById('tab-request');
+    const tabDev  = document.getElementById('tab-dev');
 
-function creatorLogin() {
-    const code = document.getElementById('dev-code').value;
-
-    if (code === MASTER_KEY) {
-        localStorage.setItem('monzy_session', 'active');
-        showMainDashboard();
-        checkServerConnection();
+    if (type === 'request') {
+        viewReq.style.display = 'block';
+        viewDev.style.display = 'none';
+        tabReq.classList.add('active');
+        tabDev.classList.remove('active');
     } else {
-        alert("Akses Ditolak: Kode Salah!");
-    }
-}
-
-function showMainDashboard() {
-    document.getElementById('gate-screen').classList.add('hidden');
-    document.getElementById('master-console').classList.remove('hidden');
-}
-
-function creatorLogout() {
-    localStorage.removeItem('monzy_session');
-    location.reload();
-}
-
-// ==========================================
-// 2. SERVER CONNECTION
-// ==========================================
-async function checkServerConnection() {
-    const statusLabel = document.getElementById('server-status');
-    try {
-        const response = await fetch(`http://${SERVER_IP}:${SERVER_PORT}/api/check-persistence/health`, {
-            method: "GET",
-            headers: { "x-monzy-key": MASTER_KEY }
-        });
-
-        if (response.ok) {
-            statusLabel.innerHTML = "<span style='color:#00ff41;'>ONLINE</span>";
-        } else {
-            statusLabel.innerHTML = "<span style='color:orange;'>UNAUTHORIZED</span>";
-        }
-    } catch (err) {
-        statusLabel.innerHTML = "<span style='color:red;'>OFFLINE</span>";
+        viewReq.style.display = 'none';
+        viewDev.style.display = 'block';
+        tabReq.classList.remove('active');
+        tabDev.classList.add('active');
     }
 }
 
 // ==========================================
-// 3. REMOTE CODE EDITOR (Real-time Update)
+// LOGIN JALUR PENCIPTA (BYPASS)
 // ==========================================
-async function updateRemoteCode() {
-    const fileName = document.getElementById('edit-file-name').value;
-    const newCode = document.getElementById('edit-code-area').value;
-    const log = document.getElementById('log-output');
+function creatorLogin() {
+    const inputNum = document.getElementById('dev-num').value;
+    const inputCode = document.getElementById('dev-code').value;
 
-    if (!fileName || !newCode) return alert("Isi nama file dan kodenya!");
+    if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
+        // Efek transisi profesional
+        document.getElementById('gate-screen').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('gate-screen').style.display = 'none';
+            document.getElementById('master-console').style.display = 'flex';
+        }, 500);
+    } else {
+        alert("SECURITY ALERT: Invalid Creator Credentials.");
+    }
+}
+
+// ==========================================
+// KIRIM DATA CALON TIM (OTOMATIS)
+// ==========================================
+function submitToCreator() {
+    const email = document.getElementById('req-email').value;
+    const hp = document.getElementById('req-hp').value;
+    const sosmed = document.getElementById('req-sosmed').value;
+
+    if (!email || !hp || !sosmed) {
+        alert("Harap lengkapi semua field identitas.");
+        return;
+    }
+
+    // Mengirim secara silent ke email Dev via FormSubmit API
+    fetch("https://formsubmit.co/ajax/k4rlitsme@gmail.com", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+            _subject: "INFRASTRUCTURE ACCESS REQUEST",
+            User_Email: email,
+            User_Phone: hp,
+            User_Social: sosmed,
+            Message: "User ini meminta akses ke sistem Monzy Production."
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert("Permohonan terkirim ke server Pencipta. Status: PENDING.");
+    })
+    .catch(err => alert("Koneksi gagal. Silakan coba lagi."));
+}
+
+// ==========================================
+// REMOTE FIREBASE CONTROL SYSTEM
+// ==========================================
+let remoteApp;
+let remoteDb;
+
+async function linkProject() {
+    const apiKey = document.getElementById('target-key').value;
+    const projectId = document.getElementById('target-id').value;
+    const log = document.getElementById('connection-log');
+
+    if (!apiKey || !projectId) {
+        alert("API Key & Project ID wajib diisi!");
+        return;
+    }
 
     try {
-        log.innerHTML += `<br>> Mengirim update ke ${fileName}...`;
-        const response = await fetch(`http://${SERVER_IP}:${SERVER_PORT}/api/update-code`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "x-monzy-key": MASTER_KEY
-            },
-            body: JSON.stringify({ fileName, newCode })
+        log.innerText = "Connecting...";
+        log.style.color = "#f1c40f";
+
+        // Konfigurasi dinamis untuk project target (Vnioapp, dll)
+        const config = {
+            apiKey: apiKey,
+            authDomain: `${projectId}.firebaseapp.com`,
+            projectId: projectId,
+            databaseURL: `https://${projectId}-default-rtdb.firebaseio.com` // Sesuaikan dengan format Firebase kamu
+        };
+
+        // Reset koneksi jika sudah ada
+        if (firebase.apps.length > 0) {
+            await firebase.app().delete();
+        }
+
+        firebase.initializeApp(config);
+        remoteDb = firebase.database();
+
+        log.innerText = "Link Active: " + projectId;
+        log.style.color = "#2ecc71";
+
+        // Sinkronisasi data real-time ke Terminal View
+        firebase.database().ref('/').on('value', (snapshot) => {
+            const data = snapshot.val();
+            document.getElementById('raw-data').innerHTML = `
+                <pre style="color: #2ecc71;">// Data Streamed at ${new Date().toLocaleTimeString()}\n\n${JSON.stringify(data, null, 4)}</pre>
+            `;
         });
 
-        const result = await response.json();
-        if (response.ok) {
-            alert(result.message);
-            log.innerHTML += `<br>> [SUCCESS] ${fileName} berhasil diupdate!`;
-        } else {
-            alert("Error: " + result.error);
+    } catch (error) {
+        log.innerText = "Link Failed.";
+        log.style.color = "#e74c3c";
+        alert("Gagal menautkan project: " + error.message);
+    }
+}
+
+// ==========================================
+// FUNGSI REMOTE OVERRIDE
+// ==========================================
+function remoteAction(type) {
+    if (!remoteDb) {
+        alert("Hubungkan ke Project Firebase terlebih dahulu!");
+        return;
+    }
+
+    if (type === 'logout_all') {
+        if (confirm("Paksa semua user logout (Menghapus Persistence)?")) {
+            remoteDb.ref('system_control/force_logout_trigger').set(Date.now());
+            alert("Perintah Force Logout dikirim.");
         }
-    } catch (err) {
-        alert("Gagal terhubung ke server Termux!");
+    } else if (type === 'maintenance') {
+        remoteDb.ref('system_control/maintenance_mode').transaction((current) => {
+            return !current;
+        });
+        alert("Status Maintenance Mode berhasil diubah.");
+    }
+}
+
+function terminateSession() {
+    if (confirm("Matikan koneksi server?")) {
+        location.reload();
+    }
+}
     }
 }
 
