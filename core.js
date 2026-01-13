@@ -1,86 +1,165 @@
 // ==========================================
-// 1. DATA MASTER & KONEKSI
+// CONFIGURATION
 // ==========================================
-const SERVER_IP = "192.168.1.2"; 
 const MASTER_KEY = "Monzyprdc2026";
-const CREATOR_PHONE = "6285758422171";
-const CREATOR_CODE  = "Monzyprdc2026";
+const SERVER_URL = "http://192.168.1.2:3000";
 
 // ==========================================
-// 2. FIX LOGIN & NAVIGASI (Agar tidak Freeze)
+// INITIAL LOAD (Persistence Check)
 // ==========================================
-function switchTab(type) {
-    // Pastikan elemen ada sebelum diubah style-nya
-    const viewReq = document.getElementById('view-request');
-    const viewDev = document.getElementById('view-dev');
-    
-    if(viewReq && viewDev) {
-        if (type === 'request') {
-            viewReq.style.display = 'block';
-            viewDev.style.display = 'none';
-        } else {
-            viewReq.style.display = 'none';
-            viewDev.style.display = 'block';
-        }
+document.addEventListener('DOMContentLoaded', () => {
+    const sessionActive = localStorage.getItem('monzy_auth');
+    if (sessionActive === 'true') {
+        showDashboard();
+        checkServerConnection();
     }
-}
+    loadTeamData();
+});
 
-function creatorLogin() {
-    const inputNum = document.getElementById('dev-num').value;
-    const inputCode = document.getElementById('dev-code').value;
-
-    if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
-        // Efek masuk ke panel utama
-        const gate = document.getElementById('gate-screen');
-        const console = document.getElementById('master-console');
-        
-        if(gate) gate.style.display = 'none';
-        if(console) console.style.display = 'flex';
-        
-        console.log("Pencipta Terverifikasi. Sistem Aktif.");
+// ==========================================
+// 1. AUTHENTICATION LOGIC
+// ==========================================
+function handleLogin() {
+    const pass = document.getElementById('login-pass').value;
+    if (pass === MASTER_KEY) {
+        localStorage.setItem('monzy_auth', 'true');
+        showDashboard();
+        checkServerConnection();
+        writeLog("Access Granted. Persistence Active.");
     } else {
-        alert("Akses Ditolak: Kredensial Salah.");
+        alert("Incorrect Passcode!");
     }
 }
 
+function handleLogout() {
+    if(confirm("Logout and clear session?")) {
+        localStorage.removeItem('monzy_auth');
+        location.reload();
+    }
+}
+
+function showDashboard() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-console').style.display = 'block';
+}
+
 // ==========================================
-// 3. LOGIKA REMOTE (KE TERMUX)
+// 2. SERVER CONNECTION
 // ==========================================
-async function sendCommand(actionName, val) {
-    const log = document.getElementById('log-output');
-    
+async function checkServerConnection() {
+    const indicator = document.getElementById('status-indicator');
     try {
-        if(log) log.innerHTML += `<br>> Mengirim ${actionName}...`;
-        
-        const response = await fetch(`http://${SERVER_IP}:3000/api/system-control`, {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json",
-                "x-monzy-key": MASTER_KEY 
-            },
-            body: JSON.stringify({ action: actionName, value: val })
+        const res = await fetch(`${SERVER_URL}/api/check-persistence/health`, {
+            headers: { "x-monzy-key": MASTER_KEY }
         });
-
-        const data = await response.json();
-        if(log) log.innerHTML += `<br><span style="color:#00ff41;">> OK: ${data.message}</span>`;
-    } catch (error) {
-        if(log) log.innerHTML += `<br><span style="color:red;">> Server Offline (Check Termux)</span>`;
+        if (res.ok) {
+            indicator.innerText = "STATUS: SERVER ONLINE (SECURE)";
+            indicator.className = "status-box online";
+            writeLog("Connection to Termux established.");
+        } else {
+            throw new Error();
+        }
+    } catch (e) {
+        indicator.innerText = "STATUS: SERVER OFFLINE";
+        indicator.className = "status-box offline";
+        writeLog("Connection failed. Check Termux & WiFi.");
     }
 }
 
-// Tombol Aksi
-function triggerForceLogout() {
-    if(confirm("Paksa Logout Semua?")) sendCommand("logout_all", Date.now());
-}
+// ==========================================
+// 3. REMOTE CODE EDITOR
+// ==========================================
+async function sendCodeUpdate() {
+    const fileName = document.getElementById('edit-filename').value;
+    const newCode = document.getElementById('edit-content').value;
 
-function toggleMaintenance() {
-    sendCommand("maintenance", true);
-    alert("Maintenance Mode Terkirim!");
+    if(!fileName || !newCode) return alert("Fill all fields!");
+
+    try {
+        writeLog(`Pushing update to ${fileName}...`);
+        const res = await fetch(`${SERVER_URL}/api/update-code`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-monzy-key": MASTER_KEY
+            },
+            body: JSON.stringify({ fileName, newCode })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            alert(data.message);
+            writeLog(`[SUCCESS] ${fileName} updated on server.`);
+        } else {
+            alert("Update failed: " + data.error);
+        }
+    } catch (e) {
+        alert("Error connecting to editor endpoint.");
+    }
 }
 
 // ==========================================
-// 4. PERSISTENCE GUARD [cite: 2025-12-30]
+// 4. TEAM MANAGEMENT (Persistent Storage)
 // ==========================================
-setInterval(() => {
-    fetch(`http://${SERVER_IP}:3000/api/check-persistence/health`).catch(() => {});
-}, 10000);
+let teamData = JSON.parse(localStorage.getItem('monzy_team_list')) || [
+    { name: "Monzy (Owner)", role: "Creator" }
+];
+
+function loadTeamData() {
+    const container = document.getElementById('team-list-display');
+    if(!container) return;
+    container.innerHTML = teamData.map((m, i) => `
+        <div class="team-item">
+            <div><strong>${m.name}</strong> <small>(${m.role})</small></div>
+            ${i !== 0 ? `<button onclick="deleteTeam(${i})" style="width:30px; background:red; color:white; padding:2px;">X</button>` : ''}
+        </div>
+    `).join('');
+}
+
+function addNewTeam() {
+    const n = document.getElementById('new-name').value;
+    const r = document.getElementById('new-role').value;
+    if(n && r) {
+        teamData.push({ name: n, role: r });
+        localStorage.setItem('monzy_team_list', JSON.stringify(teamData));
+        loadTeamData();
+        document.getElementById('new-name').value = '';
+        document.getElementById('new-role').value = '';
+    }
+}
+
+function deleteTeam(index) {
+    teamData.splice(index, 1);
+    localStorage.setItem('monzy_team_list', JSON.stringify(teamData));
+    loadTeamData();
+}
+
+// ==========================================
+// 5. TERMINAL & LOGS
+// ==========================================
+async function runTerminal() {
+    const cmd = document.getElementById('term-cmd').value;
+    try {
+        writeLog(`Executing: ${cmd}`);
+        const res = await fetch(`${SERVER_URL}/api/system/terminal`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-monzy-key": MASTER_KEY
+            },
+            body: JSON.stringify({ command: cmd })
+        });
+        const data = await res.json();
+        writeLog(`Output: ${data.output}`);
+    } catch (e) {
+        writeLog(`Terminal Error: Failed to execute.`);
+    }
+}
+
+function writeLog(msg) {
+    const win = document.getElementById('log-window');
+    const time = new Date().toLocaleTimeString();
+    if(win) {
+        win.innerHTML += `<br>[${time}] ${msg}`;
+        win.scrollTop = win.scrollHeight;
+    }
+}
