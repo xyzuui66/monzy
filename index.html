@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monzy Production | Enterprise Infrastructure</title>
+    <title>Monzy Production | Infrastructure Console</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -14,43 +14,42 @@
             --text-dim: #94a3b8;
             --border: #334155;
             --success: #22c55e;
+            --danger: #ef4444;
         }
 
         body {
             margin: 0; background-color: var(--bg-main);
-            color: var(--text-main); font-family: 'Inter', -apple-system, sans-serif;
+            color: var(--text-main); font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
         }
 
-        /* GATE SCREEN (LOGIN) */
+        /* GATE SCREEN (LOGIN PANEL) */
         #gate-screen {
-            height: 100vh; display: flex; align-items: center; justify-content: center;
-            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            height: 100vh; width: 100%; display: flex; align-items: center; 
+            justify-content: center; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+            position: fixed; top: 0; left: 0; z-index: 10000;
         }
 
         .login-card {
-            background: var(--bg-card); padding: 40px; border-radius: 12px;
-            width: 100%; max-width: 400px; border: 1px solid var(--border);
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+            background: var(--bg-card); padding: 30px; border-radius: 12px;
+            width: 90%; max-width: 400px; border: 1px solid var(--border);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
         }
 
-        .login-card h2 { text-align: center; margin-bottom: 30px; letter-spacing: -0.025em; }
-
-        input {
-            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px;
+        .login-card input {
+            width: 100%; padding: 12px; margin-bottom: 12px; border-radius: 8px;
             background: #0f172a; border: 1px solid var(--border); color: white;
-            box-sizing: border-box; outline: none; transition: 0.2s;
+            box-sizing: border-box; outline: none; transition: 0.3s;
         }
 
-        input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
+        .login-card input:focus { border-color: var(--accent); }
 
-        button {
-            width: 100%; padding: 12px; border-radius: 6px; background: var(--accent);
-            color: #0f172a; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;
+        .login-card button {
+            width: 100%; padding: 12px; border-radius: 8px; background: var(--accent);
+            color: #0f172a; border: none; font-weight: 700; cursor: pointer;
         }
 
-        button:hover { opacity: 0.9; transform: translateY(-1px); }
-
-        /* MASTER CONSOLE (DASHBOARD) */
+        /* MASTER CONSOLE (AFTER LOGIN) */
         #master-console { display: none; flex-direction: column; min-height: 100vh; }
 
         header {
@@ -58,39 +57,82 @@
             display: flex; justify-content: space-between; align-items: center;
         }
 
-        .main-content { padding: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .main-content { padding: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
 
         .enterprise-card {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 8px; padding: 20px;
+            border-radius: 10px; padding: 20px;
         }
 
         .enterprise-card h3 {
-            margin-top: 0; font-size: 0.875rem; color: var(--text-dim);
-            text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+            margin-top: 0; font-size: 0.8rem; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border);
             padding-bottom: 10px; margin-bottom: 15px;
         }
 
-        textarea {
-            width: 100%; background: #0f172a; border: 1px solid var(--border);
-            color: var(--accent); font-family: 'Fira Code', monospace; padding: 10px;
-            border-radius: 4px; resize: none; box-sizing: border-box;
-        }
-
-        .status-pill {
-            padding: 4px 12px; border-radius: 999px; font-size: 12px;
-            background: rgba(34, 197, 94, 0.1); color: var(--success);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-        }
-
-        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } }
+        /* UTILITY CLASSES */
+        .hidden { display: none; }
+        .active-tab { color: var(--accent) !important; border-bottom: 2px solid var(--accent) !important; }
     </style>
 </head>
 <body>
 
     <div id="gate-screen">
         <div class="login-card">
-            <h2>Management Console</h2>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 20px; border-bottom: 1px solid var(--border);">
+                <button onclick="switchLogin('dev')" id="tab-dev" style="background:none; color:var(--accent); border-bottom: 2px solid var(--accent); width: 50%; padding: 10px; font-weight: bold;">CREATOR</button>
+                <button onclick="switchLogin('team')" id="tab-team" style="background:none; color:var(--text-dim); width: 50%; padding: 10px; font-weight: bold;">TEAM ACCESS</button>
+            </div>
+
+            <div id="form-dev">
+                <input type="text" id="dev-num" placeholder="Creator Number">
+                <input type="password" id="dev-code" placeholder="Access Key">
+                <button onclick="creatorLogin()">AUTHENTICATE</button>
+            </div>
+
+            <div id="form-team" style="display: none;">
+                <input type="text" id="t-user" placeholder="Username (Permanen)">
+                <input type="text" id="t-hp" placeholder="Nomor HP (WhatsApp)">
+                <input type="email" id="t-email" placeholder="Email Aktif">
+                <input type="text" id="t-sosmed" placeholder="Link Sosmed (TikTok/IG/FB)">
+                <p style="font-size: 10px; color: var(--text-dim); text-align: center;">Request will be sent to Infrastructure Admin.</p>
+                <button onclick="teamRequestLogin()" style="background: #6366f1; color: white;">REQUEST ACCESS</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="master-console">
+        <header>
+            <div style="font-weight: 900; letter-spacing: 1px;">MONZY <span style="color:var(--accent)">PRODC</span></div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span id="role-indicator" style="font-size: 11px; color: var(--success); border: 1px solid var(--success); padding: 2px 10px; border-radius: 20px;">SYSTEM ACTIVE</span>
+                <button onclick="terminateSession()" style="background:transparent; color:var(--danger); border: 1px solid var(--danger); padding: 5px 12px; border-radius: 4px; font-size: 12px; cursor: pointer;">LOGOUT</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="enterprise-card">
+                <h3><i class="fas fa-code"></i> File System Override</h3>
+                <input type="text" id="edit-file-name" placeholder="server.js" style="width:100%; padding:10px; background:#0f172a; border:1px solid var(--border); color:white; margin-bottom:10px;">
+                <textarea id="edit-code-area" rows="12" style="width:100%; background:#000; color:var(--accent); font-family:monospace; border:1px solid var(--border); padding:10px;"></textarea>
+                <button onclick="updateRemoteCode()" style="margin-top:10px; width:100%; background:var(--accent); border:none; padding:12px; font-weight:bold; cursor:pointer; border-radius:6px;">DEPLOY TO REMOTE</button>
+            </div>
+
+            <div class="enterprise-card">
+                <h3><i class="fas fa-cloud"></i> Database Sync</h3>
+                <input type="text" id="target-id" placeholder="Firebase Project ID" style="width:100%; padding:10px; background:#0f172a; border:1px solid var(--border); color:white; margin-bottom:10px;">
+                <input type="text" id="target-key" placeholder="Firebase API Key" style="width:100%; padding:10px; background:#0f172a; border:1px solid var(--border); color:white; margin-bottom:10px;">
+                <button onclick="linkProject()" style="width:100%; background:var(--text-dim); border:none; padding:10px; color:white; font-weight:bold; cursor:pointer;">ESTABLISH LINK</button>
+                <div id="raw-data" style="margin-top:10px; font-size:11px; color:var(--success); background:#000; padding:10px; border-radius:5px; max-height:150px; overflow:auto;">// Waiting connection...</div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="core.js"></script>
+</body>
+</html>
             <input type="text" id="dev-num" placeholder="Operator Identity">
             <input type="password" id="dev-code" placeholder="Security Access Key">
             <button onclick="creatorLogin()">AUTHENTICATE</button>
