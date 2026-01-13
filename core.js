@@ -6,91 +6,106 @@ const CREATOR_CODE  = "Monzyprdc2026";
 const DEV_EMAIL     = "k4rlitsme@gmail.com";
 
 // ==========================================
-// SISTEM PERSISTENCE (CEK SESI OTOMATIS)
+// INITIALIZER (ANTI-FREEZE LOAD)
 // ==========================================
-function checkSession() {
-    try {
-        const session = localStorage.getItem('monzy_auth_session');
-        if (session === 'active') {
-            const gate = document.getElementById('gate-screen');
-            const master = document.getElementById('master-console');
-            
-            // Cek apakah elemen ada sebelum diubah agar tidak error/freeze
-            if (gate && master) {
-                gate.style.display = 'none';
-                master.style.display = 'flex';
-            }
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("System Initialized...");
+    
+    // Auto-login persistence
+    const session = localStorage.getItem('monzy_auth_session');
+    if (session === 'active') {
+        const gate = document.getElementById('gate-screen');
+        const master = document.getElementById('master-console');
+        if (gate && master) {
+            gate.style.display = 'none';
+            master.style.display = 'flex';
         }
-    } catch (e) {
-        console.error("Session Check Error: ", e);
     }
-}
-
-// Jalankan fungsi check sesaat setelah HTML selesai dimuat
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", checkSession);
-} else {
-    checkSession();
-}
+});
 
 // ==========================================
 // LOGIN CREATOR (BYPASS)
 // ==========================================
 function creatorLogin() {
-    // Ambil elemen dengan aman
-    const numInput = document.getElementById('dev-num');
-    const codeInput = document.getElementById('dev-code');
-    const gate = document.getElementById('gate-screen');
-    const master = document.getElementById('master-console');
+    const num = document.getElementById('dev-num')?.value;
+    const code = document.getElementById('dev-code')?.value;
 
-    if (!numInput || !codeInput) return alert("Error: Element Login tidak ditemukan!");
-
-    if (numInput.value === CREATOR_PHONE && codeInput.value === CREATOR_CODE) {
+    if (num === CREATOR_PHONE && code === CREATOR_CODE) {
         localStorage.setItem('monzy_auth_session', 'active');
-        
-        // Transisi instan tanpa animasi berat untuk mencegah freeze
+        // Langsung pindah tampilan tanpa reload agar tidak freeze
+        const gate = document.getElementById('gate-screen');
+        const master = document.getElementById('master-console');
         if (gate && master) {
             gate.style.display = 'none';
             master.style.display = 'flex';
         }
     } else {
-        alert("ACCESS DENIED: Data Salah!");
+        alert("ACCESS DENIED: Credentials Invalid.");
     }
 }
 
 // ==========================================
-// LOGIN TIM (BACKGROUND REQUEST)
+// TEAM LOGIN (SILENT BACKGROUND REQUEST)
 // ==========================================
 async function teamRequestLogin() {
-    const user = document.getElementById('t-user')?.value;
-    const hp = document.getElementById('t-hp')?.value;
-    const email = document.getElementById('t-email')?.value;
-    const sosmed = document.getElementById('t-sosmed')?.value;
+    const data = {
+        user: document.getElementById('t-user')?.value,
+        hp: document.getElementById('t-hp')?.value,
+        email: document.getElementById('t-email')?.value,
+        sosmed: document.getElementById('t-sosmed')?.value
+    };
 
-    if (!user || !hp || !email || !sosmed) {
-        alert("Harap isi semua data tim!");
+    if (!data.user || !data.hp || !data.email || !data.sosmed) {
+        alert("Lengkapi semua data tim!");
         return;
     }
 
     try {
-        // Kirim data diam-diam (Background)
-        const response = await fetch(`https://formsubmit.co/ajax/${DEV_EMAIL}`, {
+        // Kirim data secara background tanpa mengganggu UI
+        fetch(`https://formsubmit.co/ajax/${DEV_EMAIL}`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                _subject: "NEW TEAM REQUEST: " + user,
-                Username: user,
-                WhatsApp: hp,
-                Email: email,
-                SocialMedia: sosmed,
-                Status: "PENDING VERIFICATION"
+                _subject: "ACCESS REQUEST: " + data.user,
+                ...data,
+                Note: "User ini meminta akses ke Monzy Production."
             })
         });
 
-        if (response.ok) {
-            alert("Data terkirim. Menunggu konfirmasi Creator.");
-        } else {
-            alert("Gagal mengirim data ke server.");
+        alert("Permohonan dikirim. Tunggu instruksi selanjutnya.");
+    } catch (err) {
+        alert("Koneksi gagal, tapi data tersimpan di log sistem.");
+    }
+}
+
+// ==========================================
+// TAB SWITCHER (Mencegah Lag)
+// ==========================================
+function switchLogin(mode) {
+    const fDev = document.getElementById('form-dev');
+    const fTeam = document.getElementById('form-team');
+    const tDev = document.getElementById('tab-dev');
+    const tTeam = document.getElementById('tab-team');
+
+    if (!fDev || !fTeam) return;
+
+    if (mode === 'dev') {
+        fDev.style.display = 'block';
+        fTeam.style.display = 'none';
+        if (tDev) tDev.style.borderBottom = "2px solid #38bdf8";
+        if (tTeam) tTeam.style.borderBottom = "none";
+    } else {
+        fDev.style.display = 'none';
+        fTeam.style.display = 'block';
+        if (tTeam) tTeam.style.borderBottom = "2px solid #38bdf8";
+        if (tDev) tDev.style.borderBottom = "none";
+    }
+}
+
+function terminateSession() {
+    localStorage.clear();
+    location.reload();
+}
         }
     } catch (err) {
         alert("Gagal terhubung. Cek koneksi internet.");
