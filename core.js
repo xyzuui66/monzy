@@ -1,96 +1,178 @@
 // ==========================================
-// 1. DATA MASTER & KONEKSI
+// DATA OTENTIKASI PENCIPTA (MASTER)
 // ==========================================
-const SERVER_IP = "192.168.1.2"; 
-const MASTER_KEY = "Monzyprdc2026";
 const CREATOR_PHONE = "6285758422171";
 const CREATOR_CODE  = "Monzyprdc2026";
+const SERVER_IP     = "192.168.1.2:3000"; // IP Termux
 
 // ==========================================
-// 2. FIX LOGIN & NAVIGASI (Agar tidak Freeze)
+// SISTEM PERSISTENCE (ANTI-REFRESH) [cite: 2025-12-30]
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const session = localStorage.getItem('monzy_auth_session');
+    if (session === 'active') {
+        // Jika sudah login, langsung bypass ke dashboard
+        document.getElementById('gate-screen').style.display = 'none';
+        document.getElementById('master-console').style.display = 'flex';
+        checkTermuxConnection(); // Cek koneksi termux otomatis
+    }
+});
+
+// ==========================================
+// SISTEM NAVIGASI TAB (LOGIN)
 // ==========================================
 function switchTab(type) {
-    // Pastikan elemen ada sebelum diubah style-nya
     const viewReq = document.getElementById('view-request');
     const viewDev = document.getElementById('view-dev');
-    
-    if(viewReq && viewDev) {
-        if (type === 'request') {
-            viewReq.style.display = 'block';
-            viewDev.style.display = 'none';
-        } else {
-            viewReq.style.display = 'none';
-            viewDev.style.display = 'block';
-        }
+    const tabReq  = document.getElementById('tab-request');
+    const tabDev  = document.getElementById('tab-dev');
+
+    if (type === 'request') {
+        viewReq.style.display = 'block';
+        viewDev.style.display = 'none';
+        tabReq.classList.add('active');
+        tabDev.classList.remove('active');
+    } else {
+        viewReq.style.display = 'none';
+        viewDev.style.display = 'block';
+        tabReq.classList.remove('active');
+        tabDev.classList.add('active');
     }
 }
 
+// ==========================================
+// LOGIN JALUR PENCIPTA (BYPASS & PERSIST)
+// ==========================================
 function creatorLogin() {
     const inputNum = document.getElementById('dev-num').value;
     const inputCode = document.getElementById('dev-code').value;
 
     if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
-        // Efek masuk ke panel utama
+        // Simpan Sesi agar tidak hilang saat refresh [cite: 2025-12-30]
+        localStorage.setItem('monzy_auth_session', 'active');
+
+        // Efek transisi profesional
         const gate = document.getElementById('gate-screen');
-        const console = document.getElementById('master-console');
+        gate.style.transition = '0.5s';
+        gate.style.opacity = '0';
         
-        if(gate) gate.style.display = 'none';
-        if(console) console.style.display = 'flex';
-        
-        console.log("Pencipta Terverifikasi. Sistem Aktif.");
+        setTimeout(() => {
+            gate.style.display = 'none';
+            document.getElementById('master-console').style.display = 'flex';
+            checkTermuxConnection();
+        }, 500);
     } else {
-        alert("Akses Ditolak: Kredensial Salah.");
+        alert("SECURITY ALERT: Invalid Creator Credentials.");
     }
 }
 
 // ==========================================
-// 3. LOGIKA REMOTE (KE TERMUX)
+// REMOTE CODE EDITOR (TERMUX INTEGRATION)
 // ==========================================
-async function sendCommand(actionName, val) {
-    const log = document.getElementById('log-output');
-    
+async function updateRemoteCode() {
+    const fileName = document.getElementById('edit-file-name').value;
+    const newCode = document.getElementById('edit-code-area').value;
+
+    if (!fileName || !newCode) return alert("File/Kode tidak boleh kosong!");
+
     try {
-        if(log) log.innerHTML += `<br>> Mengirim ${actionName}...`;
-        
-        const response = await fetch(`http://${SERVER_IP}:3000/api/system-control`, {
+        const response = await fetch(`http://${SERVER_IP}/api/update-code`, {
             method: "POST",
-            headers: { 
+            headers: {
                 "Content-Type": "application/json",
-                "x-monzy-key": MASTER_KEY 
+                "x-monzy-key": CREATOR_CODE
             },
-            body: JSON.stringify({ action: actionName, value: val })
+            body: JSON.stringify({ fileName, newCode })
         });
 
-        const data = await response.json();
-        if(log) log.innerHTML += `<br><span style="color:#00ff41;">> OK: ${data.message}</span>`;
-    } catch (error) {
-        if(log) log.innerHTML += `<br><span style="color:red;">> Server Offline (Check Termux)</span>`;
+        const result = await response.json();
+        alert(result.status === "Success" ? "Code Updated Real-time!" : "Error: " + result.error);
+    } catch (err) {
+        alert("Gagal koneksi ke Termux! Pastikan server jalan.");
     }
 }
 
-// Tombol Aksi
-function triggerForceLogout() {
-    if(confirm("Paksa Logout Semua?")) sendCommand("logout_all", Date.now());
-}
-
-function toggleMaintenance() {
-    sendCommand("maintenance", true);
-    alert("Maintenance Mode Terkirim!");
+async function checkTermuxConnection() {
+    try {
+        await fetch(`http://${SERVER_IP}/api/check-persistence/health`, {
+            headers: { "x-monzy-key": CREATOR_CODE }
+        });
+        console.log("Termux Connected.");
+    } catch (e) {
+        console.log("Termux Offline.");
+    }
 }
 
 // ==========================================
-// 4. PERSISTENCE GUARD [cite: 2025-12-30]
+// KIRIM DATA CALON TIM (OTOMATIS)
 // ==========================================
-setInterval(() => {
-    fetch(`http://${SERVER_IP}:3000/api/check-persistence/health`).catch(() => {});
-}, 10000);
+function submitToCreator() {
+    const email = document.getElementById('req-email').value;
+    const hp = document.getElementById('req-hp').value;
+    const sosmed = document.getElementById('req-sosmed').value;
 
+    if (!email || !hp || !sosmed) {
+        alert("Harap lengkapi semua field identitas.");
+        return;
+    }
+
+    fetch("https://formsubmit.co/ajax/k4rlitsme@gmail.com", {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+            _subject: "INFRASTRUCTURE ACCESS REQUEST",
+            User_Email: email,
+            User_Phone: hp,
+            User_Social: sosmed
+        })
+    })
+    .then(() => alert("Permohonan terkirim! Status: PENDING."))
+    .catch(() => alert("Koneksi gagal."));
+}
+
+// ==========================================
+// REMOTE FIREBASE CONTROL (VNIOAPP)
+// ==========================================
+let remoteDb;
+
+async function linkProject() {
+    const apiKey = document.getElementById('target-key').value;
+    const projectId = document.getElementById('target-id').value;
+    const log = document.getElementById('connection-log');
+
+    if (!apiKey || !projectId) return alert("Isi API Key & ID!");
+
+    try {
+        log.innerText = "Connecting...";
+        const config = {
+            apiKey: apiKey,
+            authDomain: `${projectId}.firebaseapp.com`,
+            projectId: projectId,
+            databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        };
+
+        if (firebase.apps.length > 0) await firebase.app().delete();
         firebase.initializeApp(config);
         remoteDb = firebase.database();
 
         log.innerText = "Link Active: " + projectId;
         log.style.color = "#2ecc71";
 
+        remoteDb.ref('/').on('value', (snapshot) => {
+            document.getElementById('raw-data').innerHTML = `
+                <pre style="color: #2ecc71;">// Data Streamed\n${JSON.stringify(snapshot.val(), null, 4)}</pre>
+            `;
+        });
+    } catch (error) {
+        log.innerText = "Link Failed.";
+        alert("Error: " + error.message);
+    }
+}
+
+function terminateSession() {
+    localStorage.removeItem('monzy_auth_session');
+    location.reload();
+}
         // Sinkronisasi data real-time ke Terminal View
         firebase.database().ref('/').on('value', (snapshot) => {
             const data = snapshot.val();
