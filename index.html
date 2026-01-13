@@ -3,94 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Console | Monzy Production Official</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <title>MONZY PRODUCTION | VNIOAPP MANAGEMENT</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #000; color: #00ff41; font-family: 'Courier New', monospace; line-height: 1.6; }
+        .container { width: 100%; max-width: 800px; margin: auto; padding: 20px; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.1); }
+        h1, h2, h3 { color: #00ff41; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; }
+        input, textarea { width: 100%; background: #000; border: 1px solid #333; color: #00ff41; padding: 12px; margin: 10px 0; border-radius: 5px; font-family: monospace; }
+        input:focus, textarea:focus { border-color: #00ff41; outline: none; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: 0.3s; margin-top: 5px; }
+        .btn-main { background: #00ff41; color: #000; }
+        .btn-main:hover { background: #00cc33; }
+        .btn-danger { background: #ff4d4d; color: #fff; }
+        .status-box { padding: 10px; border-radius: 5px; font-size: 0.9em; margin-bottom: 10px; background: #111; border-left: 5px solid #333; }
+        .online { border-left-color: #00ff41; color: #00ff41; }
+        .offline { border-left-color: #ff4d4d; color: #ff4d4d; }
+        #log-window { background: #000; color: #00ff41; height: 150px; overflow-y: scroll; padding: 10px; font-size: 11px; border: 1px solid #1a1a1a; margin-top: 10px; }
+        .team-item { display: flex; justify-content: space-between; align-items: center; background: #111; padding: 10px; margin-bottom: 5px; border-radius: 4px; border: 1px solid #222; }
+    </style>
 </head>
 <body>
 
-    <div id="app">
-        <div id="gate-screen" class="gate-overlay">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <div class="logo-box">M</div>
-                    <h2>Monzy Production</h2>
-                    <p>Internal Infrastructure Access</p>
-                </div>
-                
-                <div class="tab-container">
-                    <button id="tab-request" class="active" onclick="switchTab('request')">Onboarding</button>
-                    <button id="tab-dev" onclick="switchTab('dev')">Creator Access</button>
-                </div>
+    <div id="login-screen" class="container">
+        <div class="card" style="text-align: center; margin-top: 50px;">
+            <i class="fas fa-shield-halved" style="font-size: 3em; margin-bottom: 15px;"></i>
+            <h2>System Access</h2>
+            <input type="text" id="login-num" placeholder="Creator Number">
+            <input type="password" id="login-pass" placeholder="Passcode (Monzyprdc2026)">
+            <button class="btn-main" onclick="handleLogin()">Authorize Access</button>
+        </div>
+    </div>
 
-                <div id="view-request" class="view">
-                    <div class="field">
-                        <label>Corporate Email</label>
-                        <input type="email" id="req-email" placeholder="name@company.com">
-                    </div>
-                    <div class="field">
-                        <label>Contact Identifier (WA)</label>
-                        <input type="text" id="req-hp" placeholder="+62 8xx">
-                    </div>
-                    <div class="field">
-                        <label>Identity Proof (Social Link)</label>
-                        <input type="text" id="req-sosmed" placeholder="https://instagram.com/...">
-                    </div>
-                    <button onclick="submitToCreator()" class="btn-submit">Submit Request</button>
-                </div>
-
-                <div id="view-dev" class="view" style="display:none;">
-                    <div class="field">
-                        <label>Creator Identifier</label>
-                        <input type="text" id="dev-num" placeholder="08XXXXXXXXXX">
-                    </div>
-                    <div class="field">
-                        <label>Security Key</label>
-                        <input type="password" id="dev-code" placeholder="••••••••">
-                    </div>
-                    <button onclick="creatorLogin()" class="btn-creator">Authorize Connection</button>
-                </div>
-                
-                <p class="auth-footer">&copy; 2026 Monzy Production Infrastructure</p>
-            </div>
+    <div id="main-console" class="container" style="display:none;">
+        <div class="card">
+            <h2><i class="fas fa-terminal"></i> Console Status</h2>
+            <div id="status-indicator" class="status-box offline">STATUS: DISCONNECTED</div>
+            <div id="log-window">> Initializing Secure Protocol...</div>
+            <button class="btn-main" style="margin-top:10px;" onclick="checkServerConnection()">Refresh Connection</button>
         </div>
 
-        <div id="master-console" class="main-dashboard" style="display:none;">
-            <header class="top-bar">
-                <div class="top-left">
-                    <span class="system-title">Infrastructure Manager</span>
-                    <span class="v-line">|</span>
-                    <span class="region">Production-Region-ID</span>
-                </div>
-                <div class="top-right">
-                    <span class="user-id"><i class="fas fa-user-shield"></i> cezi Dev</span>
-                    <button onclick="terminateSession()" class="btn-logout">Logout</button>
-                </div>
-            </header>
+        <div class="card">
+            <h3><i class="fas fa-file-code"></i> Remote Code Editor</h3>
+            <p style="font-size: 0.8em; color: #888;">Update server.js atau file lain secara real-time.</p>
+            <input type="text" id="edit-filename" placeholder="filename.js">
+            <textarea id="edit-content" rows="12" placeholder="// Paste your code here..."></textarea>
+            <button class="btn-main" onclick="sendCodeUpdate()">Push Update to Termux</button>
+        </div>
 
-            <div class="content-layout">
-                <nav class="sidebar">
-                    <div class="nav-section">
-                        <small>CORE SYSTEM</small>
-                        <a href="#" class="active"><i class="fas fa-server"></i> Server Overview</a>
-                        <a href="#"><i class="fas fa-users"></i> Team Management</a>
-                    </div>
-                    <div class="nav-section">
-                        <small>REMOTE DATA</small>
-                        <div class="link-config">
-                            <input type="text" id="target-key" placeholder="Firebase API Key">
-                            <input type="text" id="target-id" placeholder="Project ID">
-                            <button onclick="linkProject()" class="btn-action-sm">Link Project</button>
-                        </div>
-                        <div id="connection-log" class="status-indicator">Idle</div>
-                    </div>
-                </nav>
+        <div class="card">
+            <h3><i class="fas fa-users-gear"></i> Team Management</h3>
+            <div id="team-list-display"></div>
+            <hr style="border: 0.5px solid #222; margin: 15px 0;">
+            <input type="text" id="new-name" placeholder="Name">
+            <input type="text" id="new-role" placeholder="Role (e.g. Admin)">
+            <button class="btn-main" onclick="addNewTeam()">Add Member</button>
+        </div>
 
-                <main class="viewport">
-                    <div class="stats-row">
+        <div class="card">
+            <h3><i class="fas fa-square-terminal"></i> Quick Terminal</h3>
+            <input type="text" id="term-cmd" placeholder="Enter command (ls, pm2 status, etc)">
+            <button class="btn-main" onclick="runTerminal()">Execute Command</button>
+        </div>
+
+        <button class="btn-danger" onclick="handleLogout()">Emergency Logout</button>
+    </div>
+
+    <script src="core.js"></script>
+</body>
+</html>
                         <div class="stat-card">
                             <small>INSTANCE STATUS</small>
                             <h3>Active</h3>
