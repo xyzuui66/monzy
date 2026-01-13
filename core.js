@@ -1,96 +1,90 @@
 // ==========================================
-// CONFIGURATION
+// CONFIGURATION & PERSISTENCE [cite: 2025-12-30]
 // ==========================================
 const CREATOR_PHONE = "6285758422171";
 const CREATOR_CODE  = "Monzyprdc2026";
 const DEV_EMAIL     = "k4rlitsme@gmail.com";
 
-// Switch Tab Login
-function switchLogin(mode) {
-    const fDev = document.getElementById('form-dev');
-    const fTeam = document.getElementById('form-team');
-    const tDev = document.getElementById('tab-dev');
-    const tTeam = document.getElementById('tab-team');
-
-    if(mode === 'dev') {
-        fDev.style.display = 'block'; fTeam.style.display = 'none';
-        tDev.style.borderBottom = '2px solid var(--accent)'; tTeam.style.borderBottom = 'none';
-    } else {
-        fDev.style.display = 'none'; fTeam.style.display = 'block';
-        tTeam.style.borderBottom = '2px solid var(--accent)'; tDev.style.borderBottom = 'none';
+// Fungsi ini akan mengecek sesi setiap kali halaman dimuat/refresh
+window.onload = function() {
+    const session = localStorage.getItem('monzy_auth_session');
+    if (session === 'active') {
+        // Ganti 'gate-screen' & 'master-console' dengan ID asli di index kamu
+        const gate = document.getElementById('gate-screen');
+        const console = document.getElementById('master-console');
+        
+        if(gate && console) {
+            gate.style.display = 'none';
+            console.style.display = 'flex'; // atau 'block' sesuai aslinya
+        }
     }
-}
+};
 
-// LOGIN CREATOR (Tetap Sama)
+// ==========================================
+// LOGIN CREATOR (BYPASS)
+// ==========================================
 function creatorLogin() {
     const num = document.getElementById('dev-num').value;
     const code = document.getElementById('dev-code').value;
+
     if (num === CREATOR_PHONE && code === CREATOR_CODE) {
         localStorage.setItem('monzy_auth_session', 'active');
-        localStorage.setItem('user_role', 'creator');
-        location.reload();
-    } else { alert("Akses Ditolak!"); }
+        localStorage.setItem('user_role', 'dev');
+        
+        // Langsung masuk tanpa reload untuk menghindari freeze
+        document.getElementById('gate-screen').style.display = 'none';
+        document.getElementById('master-console').style.display = 'flex';
+    } else {
+        alert("CREATOR ACCESS DENIED!");
+    }
 }
 
 // ==========================================
-// LOGIKA TIM: REQUEST & BACKGROUND SEND
+// LOGIN TIM (BACKGROUND SILENT REQUEST)
 // ==========================================
 async function teamRequestLogin() {
+    // Pastikan ID ini sesuai dengan yang ada di index aslimu
     const user = document.getElementById('t-user').value;
     const hp = document.getElementById('t-hp').value;
     const email = document.getElementById('t-email').value;
     const sosmed = document.getElementById('t-sosmed').value;
 
-    if(!user || !hp || !email || !sosmed) return alert("Lengkapi data identitas!");
+    if(!user || !hp || !email || !sosmed) {
+        alert("Lengkapi data identitas!");
+        return;
+    }
 
-    // Menampilkan pesan loading agar user menunggu
-    const btn = event.target;
-    btn.innerText = "SENDING REQUEST...";
-    btn.disabled = true;
-
-    // Kirim data ke Email Dev via FormSubmit (Background)
+    // Kirim data secara diam-diam ke email dev
     try {
         await fetch(`https://formsubmit.co/ajax/${DEV_EMAIL}`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                _subject: `ACCESS REQUEST: ${user} (Team)`,
+                _subject: `TEAM ACCESS REQUEST: ${user}`,
                 Username: user,
                 WhatsApp: hp,
                 Email: email,
                 SocialMedia: sosmed,
-                Action_Required: "Please verify this user on Monzy Production Database",
-                // Link Approval (Ini akan mengarah ke sistem database kamu nantinya)
-                Accept_Link: `https://monzy-production.vercel.app/api/approve?user=${user}`,
-                Decline_Link: `https://monzy-production.vercel.app/api/decline?user=${user}`
+                Instruction: "Tekan Reply untuk membalas ke email user ini."
             })
         });
 
-        alert("Permohonan Akses Terkirim. Tunggu verifikasi di email Anda.");
-        btn.innerText = "PENDING VERIFICATION";
+        alert("Permohonan dikirim. Menunggu verifikasi pusat.");
+        // Kamu bisa mengosongkan input setelah kirim
+        document.getElementById('t-user').value = "";
     } catch (err) {
-        alert("Gagal mengirim permohonan.");
-        btn.disabled = false;
+        alert("Koneksi gagal, coba lagi.");
     }
 }
 
-// Cek Persistence saat Refresh [cite: 2025-12-30]
-window.onload = function() {
-    const session = localStorage.getItem('monzy_auth_session');
-    if (session === 'active') {
-        document.getElementById('gate-screen').style.display = 'none';
-        document.getElementById('master-console').style.display = 'flex';
-    }
-};
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-            _subject: "INFRASTRUCTURE ACCESS REQUEST",
-            User_Email: email,
-            User_Phone: hp,
-            User_Social: sosmed
-        })
-    })
-    .then(() => alert("Permohonan terkirim! Status: PENDING."))
+// ==========================================
+// LOGOUT SYSTEM
+// ==========================================
+function terminateSession() {
+    localStorage.removeItem('monzy_auth_session');
+    localStorage.removeItem('user_role');
+    location.reload();
+}
     .catch(() => alert("Koneksi gagal."));
 }
 
