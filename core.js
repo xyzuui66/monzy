@@ -1,82 +1,45 @@
-// ==========================================
-// DATA OTENTIKASI PENCIPTA (MASTER)
-// ==========================================
 const CREATOR_PHONE = "6285758422171";
 const CREATOR_CODE  = "Monzyprdc2026";
-const SERVER_IP     = "192.168.1.2:3000"; // IP Termux
+const SERVER_URL    = "http://192.168.1.2:3000";
 
-// ==========================================
-// SISTEM PERSISTENCE (ANTI-REFRESH) [cite: 2025-12-30]
-// ==========================================
+// PERSISTENCE CHECKER
 document.addEventListener('DOMContentLoaded', () => {
-    const session = localStorage.getItem('monzy_auth_session');
-    if (session === 'active') {
-        // Jika sudah login, langsung bypass ke dashboard
-        document.getElementById('gate-screen').style.display = 'none';
-        document.getElementById('master-console').style.display = 'flex';
-        checkTermuxConnection(); // Cek koneksi termux otomatis
+    if (localStorage.getItem('monzy_auth_session') === 'active') {
+        launchConsole();
     }
 });
 
-// ==========================================
-// SISTEM NAVIGASI TAB (LOGIN)
-// ==========================================
-function switchTab(type) {
-    const viewReq = document.getElementById('view-request');
-    const viewDev = document.getElementById('view-dev');
-    const tabReq  = document.getElementById('tab-request');
-    const tabDev  = document.getElementById('tab-dev');
-
-    if (type === 'request') {
-        viewReq.style.display = 'block';
-        viewDev.style.display = 'none';
-        tabReq.classList.add('active');
-        tabDev.classList.remove('active');
-    } else {
-        viewReq.style.display = 'none';
-        viewDev.style.display = 'block';
-        tabReq.classList.remove('active');
-        tabDev.classList.add('active');
-    }
-}
-
-// ==========================================
-// LOGIN JALUR PENCIPTA (BYPASS & PERSIST)
-// ==========================================
 function creatorLogin() {
-    const inputNum = document.getElementById('dev-num').value;
-    const inputCode = document.getElementById('dev-code').value;
+    const num = document.getElementById('dev-num').value;
+    const code = document.getElementById('dev-code').value;
 
-    if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
-        // Simpan Sesi agar tidak hilang saat refresh [cite: 2025-12-30]
+    if (num === CREATOR_PHONE && code === CREATOR_CODE) {
         localStorage.setItem('monzy_auth_session', 'active');
-
-        // Efek transisi profesional
-        const gate = document.getElementById('gate-screen');
-        gate.style.transition = '0.5s';
-        gate.style.opacity = '0';
-        
-        setTimeout(() => {
-            gate.style.display = 'none';
-            document.getElementById('master-console').style.display = 'flex';
-            checkTermuxConnection();
-        }, 500);
+        launchConsole();
     } else {
-        alert("SECURITY ALERT: Invalid Creator Credentials.");
+        alert("ACCESS DENIED: Credentials mismatch.");
     }
 }
 
-// ==========================================
-// REMOTE CODE EDITOR (TERMUX INTEGRATION)
-// ==========================================
+function launchConsole() {
+    document.getElementById('gate-screen').style.display = 'none';
+    document.getElementById('master-console').style.display = 'flex';
+}
+
+function terminateSession() {
+    localStorage.removeItem('monzy_auth_session');
+    location.reload();
+}
+
+// REAL-TIME REMOTE EDITOR
 async function updateRemoteCode() {
     const fileName = document.getElementById('edit-file-name').value;
     const newCode = document.getElementById('edit-code-area').value;
 
-    if (!fileName || !newCode) return alert("File/Kode tidak boleh kosong!");
+    if (!fileName || !newCode) return alert("Required: Filename and Content.");
 
     try {
-        const response = await fetch(`http://${SERVER_IP}/api/update-code`, {
+        const res = await fetch(`${SERVER_URL}/api/update-code`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -84,31 +47,41 @@ async function updateRemoteCode() {
             },
             body: JSON.stringify({ fileName, newCode })
         });
-
-        const result = await response.json();
-        alert(result.status === "Success" ? "Code Updated Real-time!" : "Error: " + result.error);
-    } catch (err) {
-        alert("Gagal koneksi ke Termux! Pastikan server jalan.");
-    }
-}
-
-async function checkTermuxConnection() {
-    try {
-        await fetch(`http://${SERVER_IP}/api/check-persistence/health`, {
-            headers: { "x-monzy-key": CREATOR_CODE }
-        });
-        console.log("Termux Connected.");
+        const data = await res.json();
+        alert(data.status === "Success" ? "Deployment Successful." : "Deployment Failed.");
     } catch (e) {
-        console.log("Termux Offline.");
+        alert("Server Unreachable. Ensure Termux is active.");
     }
 }
 
-// ==========================================
-// KIRIM DATA CALON TIM (OTOMATIS)
-// ==========================================
-function submitToCreator() {
-    const email = document.getElementById('req-email').value;
-    const hp = document.getElementById('req-hp').value;
+// FIREBASE CLOUD LINK
+async function linkProject() {
+    const apiKey = document.getElementById('target-key').value;
+    const projectId = document.getElementById('target-id').value;
+    const log = document.getElementById('connection-log');
+
+    try {
+        log.innerText = "Connecting to Firebase Cloud...";
+        const config = {
+            apiKey: apiKey,
+            authDomain: `${projectId}.firebaseapp.com`,
+            projectId: projectId,
+            databaseURL: `https://${projectId}-default-rtdb.firebaseio.com`
+        };
+
+        if (firebase.apps.length > 0) await firebase.app().delete();
+        firebase.initializeApp(config);
+        
+        firebase.database().ref('/').on('value', (snap) => {
+            log.innerText = "Link Established: " + projectId;
+            log.style.color = "#2ecc71";
+            document.getElementById('raw-data').innerHTML = `<pre>${JSON.stringify(snap.val(), null, 2)}</pre>`;
+        });
+    } catch (err) {
+        log.innerText = "Connection Refused.";
+        alert(err.message);
+    }
+}
     const sosmed = document.getElementById('req-sosmed').value;
 
     if (!email || !hp || !sosmed) {
