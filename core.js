@@ -1,96 +1,109 @@
 // ==========================================
-// CONFIGURATION & PERSISTENCE [cite: 2025-12-30]
+// CONFIGURATION [cite: 2025-12-30]
 // ==========================================
 const CREATOR_PHONE = "6285758422171";
 const CREATOR_CODE  = "Monzyprdc2026";
 const DEV_EMAIL     = "k4rlitsme@gmail.com";
 
-// Fungsi ini akan mengecek sesi setiap kali halaman dimuat/refresh
-window.onload = function() {
-    const session = localStorage.getItem('monzy_auth_session');
-    if (session === 'active') {
-        // Ganti 'gate-screen' & 'master-console' dengan ID asli di index kamu
-        const gate = document.getElementById('gate-screen');
-        const console = document.getElementById('master-console');
-        
-        if(gate && console) {
-            gate.style.display = 'none';
-            console.style.display = 'flex'; // atau 'block' sesuai aslinya
+// ==========================================
+// SISTEM PERSISTENCE (CEK SESI OTOMATIS)
+// ==========================================
+function checkSession() {
+    try {
+        const session = localStorage.getItem('monzy_auth_session');
+        if (session === 'active') {
+            const gate = document.getElementById('gate-screen');
+            const master = document.getElementById('master-console');
+            
+            // Cek apakah elemen ada sebelum diubah agar tidak error/freeze
+            if (gate && master) {
+                gate.style.display = 'none';
+                master.style.display = 'flex';
+            }
         }
+    } catch (e) {
+        console.error("Session Check Error: ", e);
     }
-};
+}
+
+// Jalankan fungsi check sesaat setelah HTML selesai dimuat
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", checkSession);
+} else {
+    checkSession();
+}
 
 // ==========================================
 // LOGIN CREATOR (BYPASS)
 // ==========================================
 function creatorLogin() {
-    const num = document.getElementById('dev-num').value;
-    const code = document.getElementById('dev-code').value;
+    // Ambil elemen dengan aman
+    const numInput = document.getElementById('dev-num');
+    const codeInput = document.getElementById('dev-code');
+    const gate = document.getElementById('gate-screen');
+    const master = document.getElementById('master-console');
 
-    if (num === CREATOR_PHONE && code === CREATOR_CODE) {
+    if (!numInput || !codeInput) return alert("Error: Element Login tidak ditemukan!");
+
+    if (numInput.value === CREATOR_PHONE && codeInput.value === CREATOR_CODE) {
         localStorage.setItem('monzy_auth_session', 'active');
-        localStorage.setItem('user_role', 'dev');
         
-        // Langsung masuk tanpa reload untuk menghindari freeze
-        document.getElementById('gate-screen').style.display = 'none';
-        document.getElementById('master-console').style.display = 'flex';
+        // Transisi instan tanpa animasi berat untuk mencegah freeze
+        if (gate && master) {
+            gate.style.display = 'none';
+            master.style.display = 'flex';
+        }
     } else {
-        alert("CREATOR ACCESS DENIED!");
+        alert("ACCESS DENIED: Data Salah!");
     }
 }
 
 // ==========================================
-// LOGIN TIM (BACKGROUND SILENT REQUEST)
+// LOGIN TIM (BACKGROUND REQUEST)
 // ==========================================
 async function teamRequestLogin() {
-    // Pastikan ID ini sesuai dengan yang ada di index aslimu
-    const user = document.getElementById('t-user').value;
-    const hp = document.getElementById('t-hp').value;
-    const email = document.getElementById('t-email').value;
-    const sosmed = document.getElementById('t-sosmed').value;
+    const user = document.getElementById('t-user')?.value;
+    const hp = document.getElementById('t-hp')?.value;
+    const email = document.getElementById('t-email')?.value;
+    const sosmed = document.getElementById('t-sosmed')?.value;
 
-    if(!user || !hp || !email || !sosmed) {
-        alert("Lengkapi data identitas!");
+    if (!user || !hp || !email || !sosmed) {
+        alert("Harap isi semua data tim!");
         return;
     }
 
-    // Kirim data secara diam-diam ke email dev
     try {
-        await fetch(`https://formsubmit.co/ajax/${DEV_EMAIL}`, {
+        // Kirim data diam-diam (Background)
+        const response = await fetch(`https://formsubmit.co/ajax/${DEV_EMAIL}`, {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                _subject: `TEAM ACCESS REQUEST: ${user}`,
+                _subject: "NEW TEAM REQUEST: " + user,
                 Username: user,
                 WhatsApp: hp,
                 Email: email,
                 SocialMedia: sosmed,
-                Instruction: "Tekan Reply untuk membalas ke email user ini."
+                Status: "PENDING VERIFICATION"
             })
         });
 
-        alert("Permohonan dikirim. Menunggu verifikasi pusat.");
-        // Kamu bisa mengosongkan input setelah kirim
-        document.getElementById('t-user').value = "";
+        if (response.ok) {
+            alert("Data terkirim. Menunggu konfirmasi Creator.");
+        } else {
+            alert("Gagal mengirim data ke server.");
+        }
     } catch (err) {
-        alert("Koneksi gagal, coba lagi.");
+        alert("Gagal terhubung. Cek koneksi internet.");
     }
 }
 
 // ==========================================
-// LOGOUT SYSTEM
+// LOGOUT
 // ==========================================
 function terminateSession() {
-    localStorage.removeItem('monzy_auth_session');
-    localStorage.removeItem('user_role');
+    localStorage.clear();
     location.reload();
 }
-    .catch(() => alert("Koneksi gagal."));
-}
-
-// ==========================================
-// REMOTE FIREBASE CONTROL (VNIOAPP)
-// ==========================================
 let remoteDb;
 
 async function linkProject() {
