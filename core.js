@@ -1,35 +1,56 @@
 // ==========================================
-// KONFIGURASI PUSAT
+// 1. DATA MASTER & KONEKSI
 // ==========================================
-const SERVER_IP = "192.168.1.2"; // IP Termux kamu
+const SERVER_IP = "192.168.1.2"; 
 const MASTER_KEY = "Monzyprdc2026";
+const CREATOR_PHONE = "6285758422171";
+const CREATOR_CODE  = "Monzyprdc2026";
 
 // ==========================================
-// FUNGSI NAVIGASI (TAB)
+// 2. FIX LOGIN & NAVIGASI (Agar tidak Freeze)
 // ==========================================
 function switchTab(type) {
-    const sections = ['view-request', 'view-dev', 'master-console'];
-    sections.forEach(s => {
-        const el = document.getElementById(s);
-        if(el) el.style.display = 'none';
-    });
+    // Pastikan elemen ada sebelum diubah style-nya
+    const viewReq = document.getElementById('view-request');
+    const viewDev = document.getElementById('view-dev');
+    
+    if(viewReq && viewDev) {
+        if (type === 'request') {
+            viewReq.style.display = 'block';
+            viewDev.style.display = 'none';
+        } else {
+            viewReq.style.display = 'none';
+            viewDev.style.display = 'block';
+        }
+    }
+}
 
-    if (type === 'request') {
-        document.getElementById('view-request').style.display = 'block';
-    } else if (type === 'dev') {
-        document.getElementById('view-dev').style.display = 'block';
+function creatorLogin() {
+    const inputNum = document.getElementById('dev-num').value;
+    const inputCode = document.getElementById('dev-code').value;
+
+    if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
+        // Efek masuk ke panel utama
+        const gate = document.getElementById('gate-screen');
+        const console = document.getElementById('master-console');
+        
+        if(gate) gate.style.display = 'none';
+        if(console) console.style.display = 'flex';
+        
+        console.log("Pencipta Terverifikasi. Sistem Aktif.");
+    } else {
+        alert("Akses Ditolak: Kredensial Salah.");
     }
 }
 
 // ==========================================
-// LOGIKA KIRIM PERINTAH KE SERVER TERMUX
+// 3. LOGIKA REMOTE (KE TERMUX)
 // ==========================================
-// Ini adalah gabungan kode fetch yang kamu tanyakan
 async function sendCommand(actionName, val) {
-    const log = document.getElementById('log-output'); // Panel hitam di web
+    const log = document.getElementById('log-output');
     
     try {
-        log.innerHTML += `<br>> Mengirim sinyal ${actionName}...`;
+        if(log) log.innerHTML += `<br>> Mengirim ${actionName}...`;
         
         const response = await fetch(`http://${SERVER_IP}:3000/api/system-control`, {
             method: "POST",
@@ -41,90 +62,25 @@ async function sendCommand(actionName, val) {
         });
 
         const data = await response.json();
-        log.innerHTML += `<br><span style="color:#00ff41;">> Server: ${data.message}</span>`;
-        alert("Perintah Berhasil Dieksekusi!");
-        
+        if(log) log.innerHTML += `<br><span style="color:#00ff41;">> OK: ${data.message}</span>`;
     } catch (error) {
-        log.innerHTML += `<br><span style="color:red;">> Error: Gagal koneksi ke ${SERVER_IP}. Pastikan Termux ON!</span>`;
-        console.error("Connection Error:", error);
+        if(log) log.innerHTML += `<br><span style="color:red;">> Server Offline (Check Termux)</span>`;
     }
 }
 
-// ==========================================
-// TOMBOL KHUSUS REMOTE
-// ==========================================
+// Tombol Aksi
 function triggerForceLogout() {
-    if(confirm("Paksa semua user keluar?")) {
-        sendCommand("logout_all", Date.now());
-    }
+    if(confirm("Paksa Logout Semua?")) sendCommand("logout_all", Date.now());
 }
 
 function toggleMaintenance() {
-    const status = confirm("Aktifkan mode pemeliharaan?");
-    sendCommand("maintenance", status);
+    sendCommand("maintenance", true);
+    alert("Maintenance Mode Terkirim!");
 }
 
 // ==========================================
-// CEK STATUS SERVER (OTOMATIS)
+// 4. PERSISTENCE GUARD [cite: 2025-12-30]
 // ==========================================
-function pingServer() {
-    fetch(`http://${SERVER_IP}:3000/api/check-persistence/health`)
-        .then(() => {
-            console.log("Server Monzy Active");
-        })
-        .catch(() => {
-            console.warn("Server Monzy Offline. Check Termux!");
-        });
-}
-
-// Jalankan cek tiap 10 detik
-setInterval(pingServer, 10000);
-
-        firebase.initializeApp(config);
-        remoteDb = firebase.database();
-
-        log.innerText = "Link Active: " + projectId;
-        log.style.color = "#2ecc71";
-
-        // Sinkronisasi data real-time ke Terminal View
-        firebase.database().ref('/').on('value', (snapshot) => {
-            const data = snapshot.val();
-            document.getElementById('raw-data').innerHTML = `
-                <pre style="color: #2ecc71;">// Data Streamed at ${new Date().toLocaleTimeString()}\n\n${JSON.stringify(data, null, 4)}</pre>
-            `;
-        });
-
-    } catch (error) {
-        log.innerText = "Link Failed.";
-        log.style.color = "#e74c3c";
-        alert("Gagal menautkan project: " + error.message);
-    }
-}
-
-// ==========================================
-// FUNGSI REMOTE OVERRIDE
-// ==========================================
-function remoteAction(type) {
-    if (!remoteDb) {
-        alert("Hubungkan ke Project Firebase terlebih dahulu!");
-        return;
-    }
-
-    if (type === 'logout_all') {
-        if (confirm("Paksa semua user logout (Menghapus Persistence)?")) {
-            remoteDb.ref('system_control/force_logout_trigger').set(Date.now());
-            alert("Perintah Force Logout dikirim.");
-        }
-    } else if (type === 'maintenance') {
-        remoteDb.ref('system_control/maintenance_mode').transaction((current) => {
-            return !current;
-        });
-        alert("Status Maintenance Mode berhasil diubah.");
-    }
-}
-
-function terminateSession() {
-    if (confirm("Matikan koneksi server?")) {
-        location.reload();
-    }
-}
+setInterval(() => {
+    fetch(`http://${SERVER_IP}:3000/api/check-persistence/health`).catch(() => {});
+}, 10000);
