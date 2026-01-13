@@ -3,94 +3,133 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Console | Monzy Production Official</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <title>Monzy Production | Enterprise Infrastructure</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+        }
+
+        body {
+            margin: 0; background-color: var(--bg-main);
+            color: var(--text-main); font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        /* GATE SCREEN (LOGIN) */
+        #gate-screen {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+
+        .login-card {
+            background: var(--bg-card); padding: 40px; border-radius: 12px;
+            width: 100%; max-width: 400px; border: 1px solid var(--border);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+        }
+
+        .login-card h2 { text-align: center; margin-bottom: 30px; letter-spacing: -0.025em; }
+
+        input {
+            width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 6px;
+            background: #0f172a; border: 1px solid var(--border); color: white;
+            box-sizing: border-box; outline: none; transition: 0.2s;
+        }
+
+        input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
+
+        button {
+            width: 100%; padding: 12px; border-radius: 6px; background: var(--accent);
+            color: #0f172a; border: none; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* MASTER CONSOLE (DASHBOARD) */
+        #master-console { display: none; flex-direction: column; min-height: 100vh; }
+
+        header {
+            padding: 15px 30px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .main-content { padding: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+        .enterprise-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 20px;
+        }
+
+        .enterprise-card h3 {
+            margin-top: 0; font-size: 0.875rem; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border);
+            padding-bottom: 10px; margin-bottom: 15px;
+        }
+
+        textarea {
+            width: 100%; background: #0f172a; border: 1px solid var(--border);
+            color: var(--accent); font-family: 'Fira Code', monospace; padding: 10px;
+            border-radius: 4px; resize: none; box-sizing: border-box;
+        }
+
+        .status-pill {
+            padding: 4px 12px; border-radius: 999px; font-size: 12px;
+            background: rgba(34, 197, 94, 0.1); color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        @media (max-width: 768px) { .main-content { grid-template-columns: 1fr; } }
+    </style>
 </head>
 <body>
 
-    <div id="app">
-        <div id="gate-screen" class="gate-overlay">
-            <div class="auth-card">
-                <div class="auth-header">
-                    <div class="logo-box">M</div>
-                    <h2>Monzy Production</h2>
-                    <p>Internal Infrastructure Access</p>
-                </div>
-                
-                <div class="tab-container">
-                    <button id="tab-request" class="active" onclick="switchTab('request')">Onboarding</button>
-                    <button id="tab-dev" onclick="switchTab('dev')">Creator Access</button>
-                </div>
-
-                <div id="view-request" class="view">
-                    <div class="field">
-                        <label>Corporate Email</label>
-                        <input type="email" id="req-email" placeholder="name@company.com">
-                    </div>
-                    <div class="field">
-                        <label>Contact Identifier (WA)</label>
-                        <input type="text" id="req-hp" placeholder="+62 8xx">
-                    </div>
-                    <div class="field">
-                        <label>Identity Proof (Social Link)</label>
-                        <input type="text" id="req-sosmed" placeholder="https://instagram.com/...">
-                    </div>
-                    <button onclick="submitToCreator()" class="btn-submit">Submit Request</button>
-                </div>
-
-                <div id="view-dev" class="view" style="display:none;">
-                    <div class="field">
-                        <label>Creator Identifier</label>
-                        <input type="text" id="dev-num" placeholder="08XXXXXXXXXX">
-                    </div>
-                    <div class="field">
-                        <label>Security Key</label>
-                        <input type="password" id="dev-code" placeholder="••••••••">
-                    </div>
-                    <button onclick="creatorLogin()" class="btn-creator">Authorize Connection</button>
-                </div>
-                
-                <p class="auth-footer">&copy; 2026 Monzy Production Infrastructure</p>
-            </div>
+    <div id="gate-screen">
+        <div class="login-card">
+            <h2>Management Console</h2>
+            <input type="text" id="dev-num" placeholder="Operator Identity">
+            <input type="password" id="dev-code" placeholder="Security Access Key">
+            <button onclick="creatorLogin()">AUTHENTICATE</button>
         </div>
+    </div>
 
-        <div id="master-console" class="main-dashboard" style="display:none;">
-            <header class="top-bar">
-                <div class="top-left">
-                    <span class="system-title">Infrastructure Manager</span>
-                    <span class="v-line">|</span>
-                    <span class="region">Production-Region-ID</span>
+    <div id="master-console">
+        <header>
+            <div style="font-weight: 700; font-size: 1.2rem;">MONZY <span style="color:var(--accent)">PRODC</span></div>
+            <div class="status-pill"><i class="fa fa-circle"></i> System Persistence Active</div>
+            <button onclick="terminateSession()" style="width:auto; padding:5px 15px; background:transparent; color:red; border:1px solid red;">LOGOUT</button>
+        </header>
+
+        <main class="main-content">
+            <div class="enterprise-card">
+                <h3><i class="fa fa-server"></i> File Infrastructure Update</h3>
+                <input type="text" id="edit-file-name" placeholder="File target (ex: server.js)">
+                <textarea id="edit-code-area" rows="12"></textarea>
+                <button onclick="updateRemoteCode()" style="margin-top:10px;">DEPLOY TO REMOTE SERVER</button>
+            </div>
+
+            <div class="enterprise-card">
+                <h3><i class="fa fa-database"></i> Firebase Cloud Override</h3>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="target-id" placeholder="Project ID">
+                    <input type="text" id="target-key" placeholder="API Key">
                 </div>
-                <div class="top-right">
-                    <span class="user-id"><i class="fas fa-user-shield"></i> cezi Dev</span>
-                    <button onclick="terminateSession()" class="btn-logout">Logout</button>
-                </div>
-            </header>
+                <button onclick="linkProject()">LINK INFRASTRUCTURE</button>
+                <div id="connection-log" style="margin: 10px 0; font-size: 12px;">Status: Waiting connection...</div>
+                <div id="raw-data" style="background:#0f172a; padding:10px; border-radius:4px; font-size:11px; max-height:150px; overflow:auto;"></div>
+            </div>
+        </main>
+    </div>
 
-            <div class="content-layout">
-                <nav class="sidebar">
-                    <div class="nav-section">
-                        <small>CORE SYSTEM</small>
-                        <a href="#" class="active"><i class="fas fa-server"></i> Server Overview</a>
-                        <a href="#"><i class="fas fa-users"></i> Team Management</a>
-                    </div>
-                    <div class="nav-section">
-                        <small>REMOTE DATA</small>
-                        <div class="link-config">
-                            <input type="text" id="target-key" placeholder="Firebase API Key">
-                            <input type="text" id="target-id" placeholder="Project ID">
-                            <button onclick="linkProject()" class="btn-action-sm">Link Project</button>
-                        </div>
-                        <div id="connection-log" class="status-indicator">Idle</div>
-                    </div>
-                </nav>
-
-                <main class="viewport">
-                    <div class="stats-row">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="core.js"></script>
+</body>
+</html>
                         <div class="stat-card">
                             <small>INSTANCE STATUS</small>
                             <h3>Active</h3>
