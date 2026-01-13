@@ -2,82 +2,78 @@
 // CONFIGURATION
 // ==========================================
 const MASTER_KEY = "Monzyprdc2026";
-const SERVER_URL = "http://192.168.1.2:3000";
+const SERVER_IP = "192.168.1.2";
+const SERVER_PORT = "3000";
 
 // ==========================================
-// INITIAL LOAD (Persistence Check)
+// 1. PERSISTENCE LOGIN (Anti-Refresh)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-    const sessionActive = localStorage.getItem('monzy_auth');
-    if (sessionActive === 'true') {
-        showDashboard();
+    // Cek apakah user sudah login sebelumnya [cite: 2025-12-30]
+    const session = localStorage.getItem('monzy_session');
+    if (session === 'active') {
+        showMainDashboard();
         checkServerConnection();
     }
-    loadTeamData();
+    renderTeam();
 });
 
-// ==========================================
-// 1. AUTHENTICATION LOGIC
-// ==========================================
-function handleLogin() {
-    const pass = document.getElementById('login-pass').value;
-    if (pass === MASTER_KEY) {
-        localStorage.setItem('monzy_auth', 'true');
-        showDashboard();
+function creatorLogin() {
+    const code = document.getElementById('dev-code').value;
+
+    if (code === MASTER_KEY) {
+        localStorage.setItem('monzy_session', 'active');
+        showMainDashboard();
         checkServerConnection();
-        writeLog("Access Granted. Persistence Active.");
     } else {
-        alert("Incorrect Passcode!");
+        alert("Akses Ditolak: Kode Salah!");
     }
 }
 
-function handleLogout() {
-    if(confirm("Logout and clear session?")) {
-        localStorage.removeItem('monzy_auth');
-        location.reload();
-    }
+function showMainDashboard() {
+    document.getElementById('gate-screen').classList.add('hidden');
+    document.getElementById('master-console').classList.remove('hidden');
 }
 
-function showDashboard() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('main-console').style.display = 'block';
+function creatorLogout() {
+    localStorage.removeItem('monzy_session');
+    location.reload();
 }
 
 // ==========================================
 // 2. SERVER CONNECTION
 // ==========================================
 async function checkServerConnection() {
-    const indicator = document.getElementById('status-indicator');
+    const statusLabel = document.getElementById('server-status');
     try {
-        const res = await fetch(`${SERVER_URL}/api/check-persistence/health`, {
+        const response = await fetch(`http://${SERVER_IP}:${SERVER_PORT}/api/check-persistence/health`, {
+            method: "GET",
             headers: { "x-monzy-key": MASTER_KEY }
         });
-        if (res.ok) {
-            indicator.innerText = "STATUS: SERVER ONLINE (SECURE)";
-            indicator.className = "status-box online";
-            writeLog("Connection to Termux established.");
+
+        if (response.ok) {
+            statusLabel.innerHTML = "<span style='color:#00ff41;'>ONLINE</span>";
         } else {
-            throw new Error();
+            statusLabel.innerHTML = "<span style='color:orange;'>UNAUTHORIZED</span>";
         }
-    } catch (e) {
-        indicator.innerText = "STATUS: SERVER OFFLINE";
-        indicator.className = "status-box offline";
-        writeLog("Connection failed. Check Termux & WiFi.");
+    } catch (err) {
+        statusLabel.innerHTML = "<span style='color:red;'>OFFLINE</span>";
     }
 }
 
 // ==========================================
-// 3. REMOTE CODE EDITOR
+// 3. REMOTE CODE EDITOR (Real-time Update)
 // ==========================================
-async function sendCodeUpdate() {
-    const fileName = document.getElementById('edit-filename').value;
-    const newCode = document.getElementById('edit-content').value;
+async function updateRemoteCode() {
+    const fileName = document.getElementById('edit-file-name').value;
+    const newCode = document.getElementById('edit-code-area').value;
+    const log = document.getElementById('log-output');
 
-    if(!fileName || !newCode) return alert("Fill all fields!");
+    if (!fileName || !newCode) return alert("Isi nama file dan kodenya!");
 
     try {
-        writeLog(`Pushing update to ${fileName}...`);
-        const res = await fetch(`${SERVER_URL}/api/update-code`, {
+        log.innerHTML += `<br>> Mengirim update ke ${fileName}...`;
+        const response = await fetch(`http://${SERVER_IP}:${SERVER_PORT}/api/update-code`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -85,30 +81,56 @@ async function sendCodeUpdate() {
             },
             body: JSON.stringify({ fileName, newCode })
         });
-        const data = await res.json();
-        if(res.ok) {
-            alert(data.message);
-            writeLog(`[SUCCESS] ${fileName} updated on server.`);
+
+        const result = await response.json();
+        if (response.ok) {
+            alert(result.message);
+            log.innerHTML += `<br>> [SUCCESS] ${fileName} berhasil diupdate!`;
         } else {
-            alert("Update failed: " + data.error);
+            alert("Error: " + result.error);
         }
-    } catch (e) {
-        alert("Error connecting to editor endpoint.");
+    } catch (err) {
+        alert("Gagal terhubung ke server Termux!");
     }
 }
 
 // ==========================================
-// 4. TEAM MANAGEMENT (Persistent Storage)
+// 4. TEAM MANAGEMENT (Persistent)
 // ==========================================
-let teamData = JSON.parse(localStorage.getItem('monzy_team_list')) || [
+let teamList = JSON.parse(localStorage.getItem('monzy_team')) || [
     { name: "Monzy (Owner)", role: "Creator" }
 ];
 
-function loadTeamData() {
-    const container = document.getElementById('team-list-display');
-    if(!container) return;
-    container.innerHTML = teamData.map((m, i) => `
-        <div class="team-item">
+function renderTeam() {
+    const teamContainer = document.getElementById('team-list-output');
+    if (!teamContainer) return;
+
+    teamContainer.innerHTML = teamList.map((member, index) => `
+        <div class="team-card" style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333;">
+            <span><strong>${member.name}</strong> (${member.role})</span>
+            ${index !== 0 ? `<button onclick="removeTeamMember(${index})" style="background:red; border:none; color:white; padding:2px 8px; cursor:pointer;">X</button>` : ''}
+        </div>
+    `).join('');
+}
+
+function addTeamMember() {
+    const name = document.getElementById('input-team-name').value;
+    const role = document.getElementById('input-team-role').value;
+
+    if (name && role) {
+        teamList.push({ name: name, role: role });
+        localStorage.setItem('monzy_team', JSON.stringify(teamList));
+        renderTeam();
+        document.getElementById('input-team-name').value = '';
+        document.getElementById('input-team-role').value = '';
+    }
+}
+
+function removeTeamMember(index) {
+    teamList.splice(index, 1);
+    localStorage.setItem('monzy_team', JSON.stringify(teamList));
+    renderTeam();
+}
             <div><strong>${m.name}</strong> <small>(${m.role})</small></div>
             ${i !== 0 ? `<button onclick="deleteTeam(${i})" style="width:30px; background:red; color:white; padding:2px;">X</button>` : ''}
         </div>
