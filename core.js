@@ -1,114 +1,89 @@
 // ==========================================
-// DATA OTENTIKASI PENCIPTA (MASTER)
+// 1. DATA MASTER & KONEKSI
 // ==========================================
+const SERVER_IP = "192.168.1.2"; 
+const MASTER_KEY = "Monzyprdc2026";
 const CREATOR_PHONE = "6285758422171";
 const CREATOR_CODE  = "Monzyprdc2026";
 
 // ==========================================
-// SISTEM NAVIGASI TAB (LOGIN)
+// 2. FIX LOGIN & NAVIGASI (Agar tidak Freeze)
 // ==========================================
 function switchTab(type) {
+    // Pastikan elemen ada sebelum diubah style-nya
     const viewReq = document.getElementById('view-request');
     const viewDev = document.getElementById('view-dev');
-    const tabReq  = document.getElementById('tab-request');
-    const tabDev  = document.getElementById('tab-dev');
-
-    if (type === 'request') {
-        viewReq.style.display = 'block';
-        viewDev.style.display = 'none';
-        tabReq.classList.add('active');
-        tabDev.classList.remove('active');
-    } else {
-        viewReq.style.display = 'none';
-        viewDev.style.display = 'block';
-        tabReq.classList.remove('active');
-        tabDev.classList.add('active');
+    
+    if(viewReq && viewDev) {
+        if (type === 'request') {
+            viewReq.style.display = 'block';
+            viewDev.style.display = 'none';
+        } else {
+            viewReq.style.display = 'none';
+            viewDev.style.display = 'block';
+        }
     }
 }
 
-// ==========================================
-// LOGIN JALUR PENCIPTA (BYPASS)
-// ==========================================
 function creatorLogin() {
     const inputNum = document.getElementById('dev-num').value;
     const inputCode = document.getElementById('dev-code').value;
 
     if (inputNum === CREATOR_PHONE && inputCode === CREATOR_CODE) {
-        // Efek transisi profesional
-        document.getElementById('gate-screen').style.opacity = '0';
-        setTimeout(() => {
-            document.getElementById('gate-screen').style.display = 'none';
-            document.getElementById('master-console').style.display = 'flex';
-        }, 500);
+        // Efek masuk ke panel utama
+        const gate = document.getElementById('gate-screen');
+        const console = document.getElementById('master-console');
+        
+        if(gate) gate.style.display = 'none';
+        if(console) console.style.display = 'flex';
+        
+        console.log("Pencipta Terverifikasi. Sistem Aktif.");
     } else {
-        alert("SECURITY ALERT: Invalid Creator Credentials.");
+        alert("Akses Ditolak: Kredensial Salah.");
     }
 }
 
 // ==========================================
-// KIRIM DATA CALON TIM (OTOMATIS)
+// 3. LOGIKA REMOTE (KE TERMUX)
 // ==========================================
-function submitToCreator() {
-    const email = document.getElementById('req-email').value;
-    const hp = document.getElementById('req-hp').value;
-    const sosmed = document.getElementById('req-sosmed').value;
-
-    if (!email || !hp || !sosmed) {
-        alert("Harap lengkapi semua field identitas.");
-        return;
-    }
-
-    // Mengirim secara silent ke email Dev via FormSubmit API
-    fetch("https://formsubmit.co/ajax/k4rlitsme@gmail.com", {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-            _subject: "INFRASTRUCTURE ACCESS REQUEST",
-            User_Email: email,
-            User_Phone: hp,
-            User_Social: sosmed,
-            Message: "User ini meminta akses ke sistem Monzy Production."
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        alert("Permohonan terkirim ke server Pencipta. Status: PENDING.");
-    })
-    .catch(err => alert("Koneksi gagal. Silakan coba lagi."));
-}
-
-// ==========================================
-// REMOTE FIREBASE CONTROL SYSTEM
-// ==========================================
-let remoteApp;
-let remoteDb;
-
-async function linkProject() {
-    const apiKey = document.getElementById('target-key').value;
-    const projectId = document.getElementById('target-id').value;
-    const log = document.getElementById('connection-log');
-
-    if (!apiKey || !projectId) {
-        alert("API Key & Project ID wajib diisi!");
-        return;
-    }
-
+async function sendCommand(actionName, val) {
+    const log = document.getElementById('log-output');
+    
     try {
-        log.innerText = "Connecting...";
-        log.style.color = "#f1c40f";
+        if(log) log.innerHTML += `<br>> Mengirim ${actionName}...`;
+        
+        const response = await fetch(`http://${SERVER_IP}:3000/api/system-control`, {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json",
+                "x-monzy-key": MASTER_KEY 
+            },
+            body: JSON.stringify({ action: actionName, value: val })
+        });
 
-        // Konfigurasi dinamis untuk project target (Vnioapp, dll)
-        const config = {
-            apiKey: apiKey,
-            authDomain: `${projectId}.firebaseapp.com`,
-            projectId: projectId,
-            databaseURL: `https://${projectId}-default-rtdb.firebaseio.com` // Sesuaikan dengan format Firebase kamu
-        };
+        const data = await response.json();
+        if(log) log.innerHTML += `<br><span style="color:#00ff41;">> OK: ${data.message}</span>`;
+    } catch (error) {
+        if(log) log.innerHTML += `<br><span style="color:red;">> Server Offline (Check Termux)</span>`;
+    }
+}
 
-        // Reset koneksi jika sudah ada
-        if (firebase.apps.length > 0) {
-            await firebase.app().delete();
-        }
+// Tombol Aksi
+function triggerForceLogout() {
+    if(confirm("Paksa Logout Semua?")) sendCommand("logout_all", Date.now());
+}
+
+function toggleMaintenance() {
+    sendCommand("maintenance", true);
+    alert("Maintenance Mode Terkirim!");
+}
+
+// ==========================================
+// 4. PERSISTENCE GUARD [cite: 2025-12-30]
+// ==========================================
+setInterval(() => {
+    fetch(`http://${SERVER_IP}:3000/api/check-persistence/health`).catch(() => {});
+}, 10000);
 
         firebase.initializeApp(config);
         remoteDb = firebase.database();
